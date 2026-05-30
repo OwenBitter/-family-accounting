@@ -97,7 +97,7 @@ export default function DashboardPage() {
     }
   };
 
-  const tooltipStyle = { backgroundColor: 'rgba(30,30,30,0.95)', borderColor: '#444', textStyle: { color: '#e5e5e5', fontSize: 12 } };
+  const tooltipStyle = { backgroundColor: 'rgba(255,255,255,0.96)', borderColor: '#e8e2d6', textStyle: { color: '#794f27', fontSize: 12 } };
 
   /* ── 趋势折线图 ── */
   const trendOption = useMemo(() => {
@@ -112,20 +112,20 @@ export default function DashboardPage() {
             params.map((p: any) => `<div style="display:flex;justify-content:space-between;gap:20px"><span>${p.marker} ${p.seriesName}</span><b>¥${Number(p.value).toLocaleString()}</b></div>`).join('');
         },
       },
-      legend: { data: ['收入', '支出', '本月攒'], textStyle: { color: '#a0a0a0' }, top: 0, itemWidth: 16, itemHeight: 8 },
-      xAxis: { type: 'category' as const, data: months, axisLine: { lineStyle: { color: '#303030' } },
-        axisLabel: { color: '#a0a0a0', rotate: months.length > 12 ? 45 : 0, fontSize: 10 } },
-      yAxis: { type: 'value' as const, splitLine: { lineStyle: { color: '#252525', type: 'dashed' as const } },
-        axisLabel: { color: '#a0a0a0', formatter: (v: number) => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v) } },
+      legend: { data: ['收入', '支出', '本月攒'], textStyle: { color: '#9f927d' }, top: 0, itemWidth: 16, itemHeight: 8 },
+      xAxis: { type: 'category' as const, data: months, axisLine: { lineStyle: { color: '#d6c9b8' } },
+        axisLabel: { color: '#9f927d', rotate: months.length > 12 ? 45 : 0, fontSize: 10 } },
+      yAxis: { type: 'value' as const, splitLine: { lineStyle: { color: '#e8e2d6', type: 'dashed' as const } },
+        axisLabel: { color: '#9f927d', formatter: (v: number) => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v) } },
       grid: { left: 50, right: 20, top: 30, bottom: 40 },
       series: [
         { name: '收入', type: 'line', smooth: true, symbol: 'circle', symbolSize: 5, lineStyle: { width: 2 },
-          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(82,196,26,0.25)' }, { offset: 1, color: 'rgba(82,196,26,0.02)' }] } },
-          itemStyle: { color: '#52c41a' }, data: trendData.map((d) => d.income) },
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(111,186,44,0.25)' }, { offset: 1, color: 'rgba(111,186,44,0.02)' }] } },
+          itemStyle: { color: '#6fba2c' }, data: trendData.map((d) => d.income) },
         { name: '支出', type: 'line', smooth: true, symbol: 'diamond', symbolSize: 5, lineStyle: { width: 2 },
-          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,77,79,0.25)' }, { offset: 1, color: 'rgba(255,77,79,0.02)' }] } },
-          itemStyle: { color: '#ff4d4f' }, data: trendData.map((d) => d.expense) },
-        { name: '本月攒', type: 'line', smooth: true, symbol: 'triangle', symbolSize: 5, lineStyle: { width: 2, type: 'dashed' as const }, itemStyle: { color: '#1677ff' }, data: trendData.map((d) => d.saved) },
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(224,90,90,0.25)' }, { offset: 1, color: 'rgba(224,90,90,0.02)' }] } },
+          itemStyle: { color: '#e05a5a' }, data: trendData.map((d) => d.expense) },
+        { name: '本月攒', type: 'line', smooth: true, symbol: 'triangle', symbolSize: 5, lineStyle: { width: 2, type: 'dashed' as const }, itemStyle: { color: '#19c8b9' }, data: trendData.map((d) => d.saved) },
       ],
     };
   }, [trendData]);
@@ -138,13 +138,13 @@ export default function DashboardPage() {
       backgroundColor: 'transparent',
       tooltip: { trigger: 'item' as const, ...tooltipStyle, formatter: (p: any) =>
         `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>¥${Number(p.value).toLocaleString()} (${p.percent}%)` },
-      legend: { type: 'scroll' as const, orient: 'vertical' as const, right: 10, textStyle: { color: '#a0a0a0', fontSize: 11 } },
+      legend: { type: 'scroll' as const, orient: 'vertical' as const, right: 10, textStyle: { color: '#9f927d', fontSize: 11 } },
       series: [{
         type: 'pie', radius: ['42%', '68%'], center: ['32%', '50%'], avoidLabelOverlap: true,
-        label: { show: true, position: 'outside', formatter: '{b}\n{d}%', color: '#c0c0c0', fontSize: 10, lineHeight: 14 },
-        labelLine: { lineStyle: { color: '#555' } },
-        emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)' } },
-        color: ['#1677ff','#52c41a','#ff8800','#722ed1','#13c2c2','#ff4d4f','#faad14','#2f54eb','#eb2f96','#a0d911','#434343'],
+        label: { show: true, position: 'outside', formatter: '{b}\n{d}%', color: '#9f927d', fontSize: 10, lineHeight: 14 },
+        labelLine: { lineStyle: { color: '#d6c9b8' } },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(61,52,40,0.3)' } },
+        color: ['#19c8b9','#6fba2c','#e87878','#889df0','#f5c31c','#e05a5a','#faad14','#a0d911','#eb2f96','#722ed1','#9f927d'],
         data,
       }],
     };
@@ -163,17 +163,17 @@ export default function DashboardPage() {
             params.map((p: any) => `<div style="display:flex;justify-content:space-between;gap:16px"><span>${p.marker} ${p.seriesName}</span><b>¥${Number(p.value).toLocaleString()}</b></div>`).join('');
         },
       },
-      legend: { data: ['BB', 'LN'], textStyle: { color: '#a0a0a0' }, top: 0, itemWidth: 16, itemHeight: 8 },
+      legend: { data: ['BB', 'LN'], textStyle: { color: '#9f927d' }, top: 0, itemWidth: 16, itemHeight: 8 },
       xAxis: { type: 'category' as const, data: cats.map((c) => c.category),
-        axisLabel: { color: '#a0a0a0', rotate: 30, fontSize: 10 }, axisLine: { lineStyle: { color: '#303030' } } },
-      yAxis: { type: 'value' as const, splitLine: { lineStyle: { color: '#252525' } },
-        axisLabel: { color: '#a0a0a0', formatter: (v: number) => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v) } },
+        axisLabel: { color: '#9f927d', rotate: 30, fontSize: 10 }, axisLine: { lineStyle: { color: '#d6c9b8' } } },
+      yAxis: { type: 'value' as const, splitLine: { lineStyle: { color: '#e8e2d6' } },
+        axisLabel: { color: '#9f927d', formatter: (v: number) => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v) } },
       grid: { left: 50, right: 20, top: 30, bottom: 60 },
       series: [
         { name: 'BB', type: 'bar', barWidth: '28%', barGap: '30%',
-          itemStyle: { color: '#1677ff', borderRadius: [4, 4, 0, 0] }, data: cats.map((c) => c.bbAmount) },
+          itemStyle: { color: '#19c8b9', borderRadius: [4, 4, 0, 0] }, data: cats.map((c) => c.bbAmount) },
         { name: 'LN', type: 'bar', barWidth: '28%',
-          itemStyle: { color: '#52c41a', borderRadius: [4, 4, 0, 0] }, data: cats.map((c) => c.lnAmount) },
+          itemStyle: { color: '#6fba2c', borderRadius: [4, 4, 0, 0] }, data: cats.map((c) => c.lnAmount) },
       ],
     };
   }, [filteredAnalysis]);
@@ -185,12 +185,12 @@ export default function DashboardPage() {
     return {
       backgroundColor: 'transparent',
       tooltip: { trigger: 'axis' as const, ...tooltipStyle },
-      legend: { data: ['余额宝', '基金', '余额/零钱', '零钱通', '银行卡'], textStyle: { color: '#a0a0a0' }, top: 0, itemWidth: 16, itemHeight: 8 },
-      xAxis: { type: 'category' as const, data: persons, axisLabel: { color: '#e5e5e5', fontSize: 13, fontWeight: 'bold' as any }, axisLine: { lineStyle: { color: '#303030' } } },
-      yAxis: { type: 'value' as const, splitLine: { lineStyle: { color: '#252525' } }, axisLabel: { color: '#a0a0a0', formatter: (v: number) => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v) } },
+      legend: { data: ['余额宝', '基金', '余额/零钱', '零钱通', '银行卡'], textStyle: { color: '#9f927d' }, top: 0, itemWidth: 16, itemHeight: 8 },
+      xAxis: { type: 'category' as const, data: persons, axisLabel: { color: '#794f27', fontSize: 13, fontWeight: 'bold' as any }, axisLine: { lineStyle: { color: '#d6c9b8' } } },
+      yAxis: { type: 'value' as const, splitLine: { lineStyle: { color: '#e8e2d6' } }, axisLabel: { color: '#9f927d', formatter: (v: number) => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v) } },
       grid: { left: 50, right: 20, top: 30, bottom: 30 },
       series: [
-        { name: '余额宝', type: 'bar', stack: 'total', barWidth: 40, itemStyle: { color: '#1677ff' }, data: assets.map((a) => a.alipayYuebao) },
+        { name: '余额宝', type: 'bar', stack: 'total', barWidth: 40, itemStyle: { color: '#19c8b9' }, data: assets.map((a) => a.alipayYuebao) },
         { name: '基金', type: 'bar', stack: 'total', itemStyle: { color: '#722ed1' }, data: assets.map((a) => a.alipayFund) },
         { name: '余额/零钱', type: 'bar', stack: 'total', itemStyle: { color: '#13c2c2' }, data: assets.map((a) => a.alipayBalance + a.wechatBalance) },
         { name: '零钱通', type: 'bar', stack: 'total', itemStyle: { color: '#52c41a' }, data: assets.map((a) => a.wechatLicaitong) },
@@ -279,7 +279,7 @@ export default function DashboardPage() {
                     <Descriptions
                       column={1} size="small"
                       labelStyle={{ color: '#a0a0a0' }}
-                      contentStyle={{ color: '#e5e5e5' }}
+                      contentStyle={{ color: '#794f27' }}
                       title={<Tag color={a.person === 'BB' ? 'blue' : 'green'}>{a.person === 'BB' ? '斌' : '纳'}的资产</Tag>}
                     >
                       <Descriptions.Item label="基金">¥{(a.alipayFund || 0).toFixed(0)}</Descriptions.Item>

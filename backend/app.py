@@ -9,7 +9,7 @@ from pathlib import Path
 
 import openpyxl
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 
 import config
@@ -676,6 +676,26 @@ def export_month():
         download_name=f"家庭收支{month}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+# ─── Frontend static files ──────────────────────────────────────────
+
+FRONTEND_DIST = config.BASE_DIR.parent / "frontend" / "dist"
+
+
+@app.route("/")
+@app.route("/<path:path>")
+def serve_frontend(path=""):
+    """Serve frontend static files. SPA fallback to index.html."""
+    # Don't intercept API routes (Flask route priority handles this,
+    # but being explicit avoids confusion)
+    if path.startswith("api/"):
+        from flask import abort
+        abort(404)
+
+    if path and (FRONTEND_DIST / path).exists():
+        return send_from_directory(str(FRONTEND_DIST), path)
+    return send_from_directory(str(FRONTEND_DIST), "index.html")
 
 
 # ─── Main ──────────────────────────────────────────────────────────

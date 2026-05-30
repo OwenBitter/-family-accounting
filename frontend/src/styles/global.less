@@ -3,9 +3,9 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: @dark-bg;
+  background-color: @layout-bg;
   color: @text-primary;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: Nunito, 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 #root {
@@ -13,9 +13,10 @@ body {
 }
 
 .stat-card {
-  background: @dark-card-bg !important;
-  border: 1px solid @dark-border !important;
+  background: @card-bg !important;
+  border: 1px solid @border-color !important;
   border-radius: @border-radius !important;
+  box-shadow: 0 2px 8px rgba(61, 52, 40, 0.06);
 
   .ant-statistic-title {
     color: @text-secondary !important;
@@ -27,10 +28,11 @@ body {
 }
 
 .chart-card {
-  background: @dark-card-bg !important;
-  border: 1px solid @dark-border !important;
+  background: @card-bg !important;
+  border: 1px solid @border-color !important;
   border-radius: @border-radius !important;
   margin-bottom: @spacing-md;
+  box-shadow: 0 2px 8px rgba(61, 52, 40, 0.06);
 }
 
 .page-header {
@@ -42,30 +44,30 @@ body {
   margin: 0;
 }
 
-/* 暗色主题表格 */
+/* 表格样式 */
 .ant-table {
   background: transparent !important;
 }
 .ant-table-thead > tr > th {
-  background: #1a1a1a !important;
+  background: @layout-bg !important;
   color: @text-secondary !important;
-  border-bottom: 1px solid @dark-border !important;
+  border-bottom: 1px solid @border-color !important;
   font-weight: 500 !important;
 }
 .ant-table-tbody > tr > td {
   background: transparent !important;
-  border-bottom: 1px solid #252525 !important;
+  border-bottom: 1px solid @border-color !important;
   color: @text-primary !important;
 }
 .ant-table-tbody > tr:hover > td {
-  background: rgba(22,119,255,0.06) !important;
+  background: fade(@primary-color, 4%) !important;
 }
 .ant-table-summary {
-  background: #1a1a1a !important;
+  background: @layout-bg !important;
 }
 .ant-table-summary > tr > td {
   border-bottom: none !important;
 }
 .ant-table-expanded-row > td {
-  background: #1a1a1a !important;
+  background: @layout-bg !important;
 }

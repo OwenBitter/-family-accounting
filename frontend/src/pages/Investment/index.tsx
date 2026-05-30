@@ -62,7 +62,7 @@ export default function InvestmentPage() {
       <Row gutter={16} style={{ marginTop: 16 }}>
         {/* 外借资产明细 */}
         <Col xs={24} md={12} style={{ display: 'flex' }}>
-          <Card className="chart-card" title={<Text style={{ color: '#e5e5e5' }}>外借资产明细</Text>} size="small" style={{ flex: 1 }}>
+          <Card className="chart-card" title={<Text style={{ color: '#794f27' }}>外借资产明细</Text>} size="small" style={{ flex: 1 }}>
             <Table dataSource={loanBook.map((r, i) => ({ ...r, key: i }))}
               columns={[
                 { title: '月份', dataIndex: 'month', width: 90 },
@@ -80,7 +80,7 @@ export default function InvestmentPage() {
 
         {/* 黄金资产 */}
         <Col xs={24} md={12} style={{ display: 'flex' }}>
-          <Card className="chart-card" title={<Text style={{ color: '#e5e5e5' }}>{`黄金资产 (${gold.length}件)`}</Text>} size="small" style={{ flex: 1 }}>
+          <Card className="chart-card" title={<Text style={{ color: '#794f27' }}>{`黄金资产 (${gold.length}件)`}</Text>} size="small" style={{ flex: 1 }}>
             <Table dataSource={gold.map((g, i) => ({ ...g, key: i }))}
               columns={[
                 { title: '', dataIndex: 'imageIndex', width: 60,

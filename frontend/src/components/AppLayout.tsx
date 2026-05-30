@@ -33,22 +33,22 @@ export default function AppLayout() {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        style={{ background: '#1f1f1f' }}
+        style={{ background: '#e8ddd0' }}
       >
         <div style={{
           height: 64,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#e5e5e5',
+          color: '#794f27',
           fontSize: collapsed ? 16 : 20,
           fontWeight: 700,
-          borderBottom: '1px solid #303030',
+          borderBottom: '1px solid #d6c9b8',
         }}>
-          {collapsed ? '📒' : '家庭记账'}
+          {collapsed ? '📒' : '🏝️ 家庭记账'}
         </div>
         <Menu
-          theme="dark"
+          theme="light"
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
@@ -57,7 +57,7 @@ export default function AppLayout() {
         />
       </Sider>
       <Layout>
-        <Content style={{ padding: 24, background: '#141414' }}>
+        <Content style={{ padding: 24, background: '#f0e8d8' }}>
           <Spin spinning={globalLoading}>
             <Outlet />
           </Spin>
