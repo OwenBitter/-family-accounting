@@ -8,59 +8,20 @@ Usage:
   python scripts/migrate_history.py "E:/path/to/bills" # Custom path
 """
 
-import sys, re
+import sys
 from pathlib import Path
-from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import openpyxl
-from openpyxl.utils.cell import get_column_letter
 from models.schemas import MonthlyData, IncomeRecord, Transaction, AssetSnapshot
 from services.data_store import DataStore
+from services.xlsx_utils import sf, parse_datetime, norm_cat, INCOME_NORM, detect_person_from_label
 
 
 # Default billing directory. Override via command-line argument.
 BILL_DIR = Path("E:/账单")
 HISTORY_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "history"
-
-# Map xlsx category names to standard categories
-CAT_NORM = {
-    "购物": "购物（网购）", "网购": "购物（网购）", "网购-美妆": "购物（网购）",
-    "日用百货": "购物（网购）", "家居家装": "购物（网购）", "服饰美容": "购物（网购）",
-    "数码家电": "购物（网购）",
-    "餐饮": "餐饮", "餐饮美食": "餐饮",
-    "还款": "还款（房贷 信用卡）", "房贷": "还款（房贷 信用卡）",
-    "娱乐": "娱乐",
-    "生活服务": "生活服务",
-    "转账": "转账（红包、人情）", "红包": "转账（红包、人情）",
-    "充值缴费": "充值缴费",
-    "交通": "交通", "出行": "交通",
-    "医疗": "医疗（保险、核酸等）", "保险": "医疗（保险、核酸等）",
-    "家庭支出": "家庭支出（装修、大件）", "装修": "家庭支出（装修、大件）",
-}
-# Income category mapping
-INCOME_NORM = {"工资": "工资", "房租": "房租", "公司": "公司", "理财": "理财收益", "退款": "其他"}
-
-
-def parse_datetime(s):
-    """Try to parse a datetime from string or datetime object."""
-    if isinstance(s, datetime):
-        return s
-    if not s:
-        return None
-    s = str(s).strip()
-    for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M:%S",
-                "%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"]:
-        try:
-            return datetime.strptime(s, fmt)
-        except ValueError:
-            continue
-    return None
-
-
-def norm_cat(name):
-    return CAT_NORM.get(str(name).strip(), str(name).strip())
 
 
 def parse_xlsx_to_monthly(filepath: Path) -> MonthlyData | None:
@@ -76,11 +37,6 @@ def parse_xlsx_to_monthly(filepath: Path) -> MonthlyData | None:
 
     md = MonthlyData(month=month_key)
 
-    def sf(v):
-        """Safe float conversion"""
-        if v is None or str(v).strip() in ('', '-', '--'):
-            return 0.0
-        return float(str(v).replace(',', '').replace(' ', ''))
 
     # ── 总 sheet ──
     if "总" in wb.sheetnames:

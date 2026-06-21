@@ -13,66 +13,14 @@ Outputs a JSON manifest with parsed xlsx data and image listing.
 Claude can then read each image (multimodal) and fill in the asset fields.
 """
 
-import json, re, sys
+import json, sys
 from pathlib import Path
-from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import openpyxl
-from models.schemas import MonthlyData, IncomeRecord, Transaction, AssetSnapshot
-
-
-def parse_datetime(s):
-    if isinstance(s, datetime):
-        return s
-    if not s:
-        return None
-    s = str(s).strip()
-    for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M:%S",
-                "%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d"]:
-        try:
-            return datetime.strptime(s, fmt)
-        except ValueError:
-            continue
-    return None
-
-
-CAT_NORM = {
-    "购物": "购物（网购）", "网购": "购物（网购）", "网购-美妆": "购物（网购）",
-    "日用百货": "购物（网购）", "家居家装": "购物（网购）", "服饰美容": "购物（网购）",
-    "数码家电": "购物（网购）",
-    "餐饮": "餐饮", "餐饮美食": "餐饮",
-    "还款": "还款（房贷 信用卡）", "房贷": "还款（房贷 信用卡）",
-    "娱乐": "娱乐",
-    "生活服务": "生活服务",
-    "转账": "转账（红包、人情）", "红包": "转账（红包、人情）",
-    "充值缴费": "充值缴费",
-    "交通": "交通", "出行": "交通",
-    "医疗": "医疗（保险、核酸等）", "保险": "医疗（保险、核酸等）",
-    "家庭支出": "家庭支出（装修、大件）", "装修": "家庭支出（装修、大件）",
-}
-INCOME_NORM = {"工资": "工资", "房租": "房租", "公司": "公司", "理财": "理财收益", "退款": "其他"}
-
-
-def norm_cat(name):
-    return CAT_NORM.get(str(name).strip(), str(name).strip())
-
-
-def sf(v):
-    """Safe float conversion."""
-    if v is None or str(v).strip() in ('', '-', '--'):
-        return 0.0
-    return float(str(v).replace(',', '').replace(' ', ''))
-
-
-def detect_month_from_folder(folder: Path) -> str | None:
-    """Try to extract month key from folder name."""
-    name = folder.name.strip()
-    m = re.search(r'(\d{4})[.年\-](\d{1,2})', name)
-    if m:
-        return f"{m.group(1)}.{m.group(2)}"
-    return None
+from models.schemas import AssetSnapshot
+from services.xlsx_utils import sf, parse_datetime, norm_cat, INCOME_NORM, detect_month_from_path, detect_person_from_label
 
 
 def parse_single_xlsx(filepath: Path) -> dict:
@@ -209,7 +157,7 @@ def scan_folder(folder: Path) -> dict:
         print(f"Error: folder not found: {folder}", file=sys.stderr)
         sys.exit(1)
 
-    month_key = detect_month_from_folder(folder)
+    month_key = detect_month_from_path(folder)
     result = {
         "folder": str(folder),
         "month": month_key or "",
