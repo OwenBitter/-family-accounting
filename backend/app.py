@@ -20,11 +20,11 @@ from services.excel_writer import create_monthly_book
 from services.classifier import classify, classify_income, get_all_categories
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173",
-                                               "http://localhost:5174",
-                                               "http://localhost:3000",
-                                               "http://127.0.0.1:5173",
-                                               "http://127.0.0.1:5174"]}})
+_cors_origins = os.getenv("CORS_ORIGINS",
+                          "http://localhost:5173,http://localhost:5174,"
+                          "http://localhost:3000,http://127.0.0.1:5173,"
+                          "http://127.0.0.1:5174")
+CORS(app, resources={r"/api/*": {"origins": [o.strip() for o in _cors_origins.split(",") if o.strip()]}})
 
 app.config["MAX_CONTENT_LENGTH"] = config.MAX_CONTENT_LENGTH
 app.config["UPLOAD_FOLDER"] = str(config.UPLOAD_DIR)
@@ -750,6 +750,9 @@ def serve_frontend(path=""):
 # ─── Main ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print(f"Starting server on http://localhost:5000")
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "5000"))
+    debug = os.getenv("FLASK_DEBUG", "true").lower() in ("1", "true", "yes")
+    print(f"Starting server on http://{host}:{port}")
     print(f"Data directory: {config.DATA_DIR}")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host=host, port=port, debug=debug)

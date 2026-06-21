@@ -1,16 +1,27 @@
+import json
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR.parent / "data"
+_data_dir = Path(os.getenv("DATA_DIR", BASE_DIR.parent / "data"))
+DATA_DIR = _data_dir if _data_dir.is_absolute() else BASE_DIR.parent / _data_dir
 HISTORY_DIR = DATA_DIR / "history"
 TEMPLATES_DIR = DATA_DIR / "templates"
 UPLOAD_DIR = BASE_DIR / "uploads"
 
 TEMPLATE_FILE = TEMPLATES_DIR / "empty_book.xlsx"
 
-PERSONS = ["BB", "LN"]
-PERSON_LABELS = {"BB": "斌", "LN": "纳"}
+_persons_raw = os.getenv("PERSONS", "BB,LN")
+PERSONS = [p.strip() for p in _persons_raw.split(",") if p.strip()]
+_labels_raw = os.getenv("PERSON_LABELS", '{"BB":"斌","LN":"纳"}')
+try:
+    PERSON_LABELS = json.loads(_labels_raw)
+except (json.JSONDecodeError, TypeError):
+    PERSON_LABELS = {"BB": "斌", "LN": "纳"}
 
 # Person auto-detection keywords.
 # Replace with actual account identifiers to enable auto-detection.
@@ -152,12 +163,12 @@ CATEGORIES = [
 MONTH_FORMAT = "%Y.%-m"
 
 # Billing source directory (where xlsx files and screenshots are stored)
-# Set to your actual billing directory path
-BILL_DIR = DATA_DIR / "bills"
+_bill_dir = Path(os.getenv("BILL_DIR", "data/bills"))
+BILL_DIR = _bill_dir if _bill_dir.is_absolute() else DATA_DIR.parent / _bill_dir
 
 # Investment files (relative to BILL_DIR or absolute paths)
 INVESTMENT_FILE = BILL_DIR / "投资记账/投资记账.xlsx"
 GOLD_FILE = BILL_DIR / "投资记账/黄金.xlsx"
 
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", "16777216"))
 ALLOWED_EXTENSIONS = {".csv", ".xlsx", ".xls", ".png", ".jpg", ".jpeg"}
