@@ -8,6 +8,7 @@ Usage:
   python scripts/migrate_history.py "E:/path/to/bills" # Custom path
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -145,19 +146,28 @@ def parse_xlsx_to_monthly(filepath: Path) -> MonthlyData | None:
 
 
 def main():
-    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
-    store = DataStore(HISTORY_DIR)
+    parser = argparse.ArgumentParser(description="Migrate xlsx history files to JSON cache")
+    parser.add_argument("bill_dir", nargs="?", default=str(BILL_DIR),
+                        help="Billing directory (default: %(default)s)")
+    parser.add_argument("--history-dir", default=str(HISTORY_DIR),
+                        help="Output history directory (default: %(default)s)")
+    args = parser.parse_args()
+
+    bill_dir = Path(args.bill_dir)
+    history_dir = Path(args.history_dir)
+    history_dir.mkdir(parents=True, exist_ok=True)
+    store = DataStore(history_dir)
 
     # Clear old cache
     import shutil
-    for f in HISTORY_DIR.glob("*.json"):
+    for f in history_dir.glob("*.json"):
         if f.name != "index.json":
             f.unlink()
 
-    xlsx_files = sorted(BILL_DIR.rglob("家庭收支*.xlsx"))
+    xlsx_files = sorted(bill_dir.rglob("家庭收支*.xlsx"))
     count = 0
     for fp in xlsx_files:
-        print(f"Reading {fp.relative_to(BILL_DIR)}...")
+        print(f"Reading {fp.relative_to(bill_dir)}...")
         md = parse_xlsx_to_monthly(fp)
         if md is None:
             print(f"  Skip")

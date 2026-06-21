@@ -1,10 +1,10 @@
-"""Generate empty xlsx template from existing 2026.1 file, clearing data rows."""
+"""Generate empty xlsx template from an existing monthly file, clearing data rows."""
 
+import argparse
 import shutil
 from pathlib import Path
 import openpyxl
 
-REFERENCE_FILE = Path("E:/账单/家庭收支2026.1.xlsx")
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "templates"
 TEMPLATE_FILE = TEMPLATE_DIR / "empty_book.xlsx"
 
@@ -38,15 +38,26 @@ def clear_cell(ws, cell_ref):
 
 
 def main():
-    TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
-    if not REFERENCE_FILE.exists():
-        print(f"Reference file not found: {REFERENCE_FILE}")
+    parser = argparse.ArgumentParser(description="Generate empty xlsx template from a reference file")
+    parser.add_argument("reference", nargs="?", default="",
+                        help="Path to an existing monthly xlsx to use as template (default: empty template)")
+    parser.add_argument("-o", "--output", default=str(TEMPLATE_FILE),
+                        help="Output template path (default: %(default)s)")
+    args = parser.parse_args()
+
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not args.reference or not Path(args.reference).exists():
+        if args.reference:
+            print(f"Reference file not found: {args.reference}")
         print("Creating a minimal empty template instead.")
-        _create_minimal_template()
+        _create_minimal_template(output_path)
         return
 
-    shutil.copy2(REFERENCE_FILE, TEMPLATE_FILE)
-    wb = openpyxl.load_workbook(TEMPLATE_FILE)
+    ref_path = Path(args.reference)
+    shutil.copy2(ref_path, output_path)
+    wb = openpyxl.load_workbook(output_path)
 
     for sheet_name, cfg in CLEAR_RANGES.items():
         ws = wb[sheet_name]
@@ -62,13 +73,13 @@ def main():
         for cell_ref in cells:
             clear_cell(ws, cell_ref)
 
-    wb.save(TEMPLATE_FILE)
-    print(f"Template created: {TEMPLATE_FILE}")
+    wb.save(output_path)
+    print(f"Template created: {output_path}")
 
 
-def _create_minimal_template():
+def _create_minimal_template(output_path: Path):
     """Create a basic template when no reference file is available."""
-    TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     wb = openpyxl.Workbook()
 
     # Create required sheets
