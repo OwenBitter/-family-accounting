@@ -57,10 +57,19 @@ def create_monthly_book(month: str, data: MonthlyData,
     else:
         raise FileNotFoundError(f"Template not found: {TEMPLATE_FILE}")
 
+    # Replace old 支出明细 with 支出分析 renamed → combined expense+income view
+    if "支出分析" in wb.sheetnames:
+        if "支出明细" in wb.sheetnames:
+            del wb["支出明细"]
+        wb["支出分析"].title = "支出明细"
+    # Clean up duplicate sheets from previous runs
+    for sn in list(wb.sheetnames):
+        if sn.startswith("支出明细") and sn != "支出明细":
+            del wb[sn]
+
     _write_summary_sheet(wb, month_num, data)
     _write_income_sheet(wb, data)
-    _write_expenses_sheet(wb, data)
-    _write_analysis_sheet(wb, data)
+    _write_analysis_sheet(wb, data)  # combined expense+income details
     _write_assets_sheet(wb, data)
 
     wb.save(output_path)
@@ -73,7 +82,6 @@ def _clear_data_sheets(wb):
     clear_configs = {
         "收入": {"start": 2},
         "支出明细": {"start": 2},
-        "支出分析": {"start": 3, "end": 13},
     }
     for sheet_name, cfg in clear_configs.items():
         if sheet_name not in wb.sheetnames:
@@ -189,37 +197,111 @@ def _write_expenses_sheet(wb, data: MonthlyData):
 
 
 def _write_analysis_sheet(wb, data: MonthlyData):
-    """Write 支出分析 (expense analysis) sheet."""
-    ws = wb["支出分析"]
+    """Write 支出明细+收入明细 (combined expense & income details) sheet."""
+    # Handle both legacy (支出分析) and current (支出明细) sheet names
+    if "支出明细" in wb.sheetnames:
+        ws = wb["支出明细"]
+    elif "支出分析" in wb.sheetnames:
+        ws = wb["支出分析"]
+    else:
+        return
 
-    # Calculate category totals
-    bb_totals: dict[str, float] = {}
-    ln_totals: dict[str, float] = {}
+    # ── Clear existing content and unmerge all cells ──
+    for merge_range in list(ws.merged_cells.ranges):
+        ws.unmerge_cells(str(merge_range))
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+        for cell in row:
+            if not isinstance(cell, openpyxl.cell.cell.MergedCell):
+                cell.value = None
 
-    for t in data.expenses.get("BB", []):
-        if t.amount >= 0:
+    # ── Write header ──
+    thin = Side(style="thin", color="999999")
+    border = Border(top=thin, bottom=thin)
+    header_font = Font(bold=True, size=11)
+    header_align = Alignment(horizontal="center", vertical="center")
+
+    headers = ["人员", "出账时间", "账务类型", "支出（-元）", "支付渠道", "备注"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.alignment = header_align
+        cell.border = border
+
+    # ── Write expenses ──
+    row = 2
+    for person in ["BB", "LN"]:
+        label = PERSON_LABELS[person]
+        txns = data.expenses.get(person, [])
+        if not txns:
             continue
-        cat = t.target_category or t.raw_category
-        bb_totals[cat] = bb_totals.get(cat, 0) + abs(t.amount)
+        start_row = row
+        for t in txns:
+            if t.amount >= 0:
+                continue  # Only expenses
+            _safe_set_cell(ws, row, 1, value=label).alignment = Alignment(horizontal="center")
+            _safe_set_cell(ws, row, 2, value=t.time.strftime("%Y-%m-%d %H:%M:%S"))
+            _safe_set_cell(ws, row, 3, value=t.target_category or t.raw_category)
+            c4 = _safe_set_cell(ws, row, 4, value=abs(t.amount))
+            c4.number_format = '#,##0.00'
+            _safe_set_cell(ws, row, 5, value=t.payment_method)
+            _safe_set_cell(ws, row, 6, value=t.description)
+            row += 1
 
-    for t in data.expenses.get("LN", []):
-        if t.amount >= 0:
+        end_row = row - 1
+        if end_row >= start_row:
+            try:
+                ws.merge_cells(start_row=start_row, start_column=1,
+                               end_row=end_row, end_column=1)
+            except openpyxl.utils.exceptions.IllegalCharacterError:
+                pass
+
+    # ── Blank separator row ──
+    row += 1
+
+    # ── Income section header ──
+    _safe_set_cell(ws, row, 1, value="收入明细")
+    ws.cell(row=row, column=1).font = Font(bold=True, size=12)
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=7)
+    row += 1
+
+    inc_headers = ["人员", "入账时间", "账务类型", "收入（+元）", "支付渠道", "对方账户", "备注"]
+    for col, h in enumerate(inc_headers, 1):
+        cell = _safe_set_cell(ws, row, col, value=h)
+        cell.font = header_font
+        cell.alignment = header_align
+        cell.border = border
+    row += 1
+
+    # ── Write income ──
+    for person in ["BB", "LN"]:
+        label = PERSON_LABELS[person]
+        recs = data.income.get(person, [])
+        if not recs:
             continue
-        cat = t.target_category or t.raw_category
-        ln_totals[cat] = ln_totals.get(cat, 0) + abs(t.amount)
+        start_row = row
+        for rec in recs:
+            _safe_set_cell(ws, row, 1, value=label).alignment = Alignment(horizontal="center")
+            _safe_set_cell(ws, row, 2,
+                           value=rec.time if isinstance(rec.time, str)
+                           else rec.time.strftime("%Y-%m-%d %H:%M:%S"))
+            _safe_set_cell(ws, row, 3, value=rec.category)
+            c4 = _safe_set_cell(ws, row, 4, value=rec.amount)
+            c4.number_format = '#,##0.00'
+            _safe_set_cell(ws, row, 5, value=rec.channel)
+            _safe_set_cell(ws, row, 6, value=rec.account)
+            _safe_set_cell(ws, row, 7, value=rec.note)
+            row += 1
 
-    for i, cat in enumerate(CATEGORIES, start=3):
-        ln_amt = ln_totals.get(cat, 0)
-        bb_amt = bb_totals.get(cat, 0)
-        total = ln_amt + bb_amt
+        end_row = row - 1
+        if end_row >= start_row:
+            try:
+                ws.merge_cells(start_row=start_row, start_column=1,
+                               end_row=end_row, end_column=1)
+            except openpyxl.utils.exceptions.IllegalCharacterError:
+                pass
 
-        _safe_set_cell(ws, i, 2, value=cat)
-        _safe_set_cell(ws, i, 3, value=ln_amt if ln_amt else 0)
-        ws.cell(row=i, column=3).number_format = '#,##0.00'
-        _safe_set_cell(ws, i, 4, value=bb_amt if bb_amt else 0)
-        ws.cell(row=i, column=4).number_format = '#,##0.00'
-        _safe_set_cell(ws, i, 5, value=total if total else 0)
-        ws.cell(row=i, column=5).number_format = '#,##0.00'
+    # Rename sheet tab
+    ws.title = "支出明细"
 
 
 def _write_assets_sheet(wb, data: MonthlyData):

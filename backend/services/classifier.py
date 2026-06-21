@@ -7,7 +7,8 @@ from config import CATEGORY_MAP, KEYWORD_RULES, CATEGORIES
 
 
 def classify(source: str, raw_category: str, description: str = "",
-             amount: float = 0.0, custom_rules: Optional[dict] = None) -> str:
+             amount: float = 0.0, counterparty: str = "",
+             custom_rules: Optional[dict] = None) -> str:
     """Map a raw category to a target category.
 
     Args:
@@ -36,23 +37,29 @@ def classify(source: str, raw_category: str, description: str = "",
         if result == "__income__":
             return "__income__"
         if result is None or result == "__keyword__":
-            return _keyword_match(description, amount)
+            return _keyword_match(description, counterparty, amount)
+        if isinstance(result, str) and result.startswith("__keyword__"):
+            # Support "__keyword__:fallback" syntax
+            fallback = result.split(":", 1)[1] if ":" in result else "其他"
+            kw = _keyword_match(description, counterparty, amount)
+            return kw if kw != "其他" else fallback
         return result
 
     # 3. Secondary keyword matching for "商户消费" and similar generic types
-    return _keyword_match(description if description else raw_category, amount)
+    return _keyword_match(description if description else raw_category, counterparty, amount)
 
 
-def _keyword_match(text: str, amount: float = 0.0) -> str:
-    """Match text against keyword rules."""
-    if not text:
+def _keyword_match(text: str, counterparty: str = "", amount: float = 0.0) -> str:
+    """Match text and counterparty against keyword rules."""
+    if not text and not counterparty:
         return "其他"
 
     text_lower = text.lower()
+    cpty_lower = counterparty.lower()
 
     for keywords, category in KEYWORD_RULES:
         for kw in keywords:
-            if kw.lower() in text_lower:
+            if kw.lower() in text_lower or kw.lower() in cpty_lower:
                 return category
 
     # Amount-based rule: large purchases may be 家庭支出

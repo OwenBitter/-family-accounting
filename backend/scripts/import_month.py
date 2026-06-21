@@ -1,10 +1,9 @@
-"""One-click monthly import: parse xlsx/csv + OCR screenshots + write to JSON & Excel.
+"""One-click monthly import: parse xlsx/csv + write to JSON & Excel.
 
 No Flask dependency — directly operates DataStore and excel_writer.
 
 Usage:
   python3 import_month.py 2026.5              # Import both persons
-  python3 import_month.py 2026.5 --skip-ocr   # Skip screenshot processing
   python3 import_month.py 2026.5 --person BB  # Only import one person
   python3 import_month.py 2026.5 --dry-run    # Preview without writing
 """
@@ -19,7 +18,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
-from models.schemas import MonthlyData, Transaction, IncomeRecord, AssetSnapshot
+from models.schemas import MonthlyData, Transaction, IncomeRecord
 from services.data_store import DataStore
 from services.excel_reader import parse_alipay_csv, parse_wechat_xlsx
 from services.excel_writer import create_monthly_book
@@ -71,133 +70,23 @@ def month_from_folder_name(folder_name: str) -> str | None:
     return None
 
 
-# ─── OCR integration ──────────────────────────────────────────────────
-
-def run_ocr_for_person(person_dir: Path, person_code: str) -> dict:
-    """Run OCR on all screenshots in a person's directory.
-
-    Returns:
-        dict with asset fields extracted from OCR, or empty dict on failure.
-    """
-    img_exts = {".png", ".jpg", ".jpeg"}
-    images = find_files(person_dir, img_exts)
-    if not images:
-        return {}
-
-    try:
-        # Use Tesseract-based OCR from ocr_analyze.py
-        # Set env as ocr_analyze.py does
-        os.environ.setdefault("TESSDATA_PREFIX", os.path.expanduser("~/tessdata"))
-
-        import pytesseract
-        from PIL import Image, ImageEnhance
-
-        # Tesseract path — try WSL path first, then Windows
-        tesseract_paths = [
-            "/usr/bin/tesseract",
-            "/usr/local/bin/tesseract",
-            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-            r"/mnt/c/Program Files/Tesseract-OCR/tesseract.exe",
-        ]
-        tesseract_cmd = None
-        for tp in tesseract_paths:
-            if os.path.exists(tp):
-                tesseract_cmd = tp
-                break
-
-        if tesseract_cmd:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-        else:
-            print("  [WARN] Tesseract not found, skipping OCR")
-            return {}
-
-        all_assets = {}
-
-        for img_path in images:
-            print(f"  OCR: {img_path.name}...")
-            try:
-                img = Image.open(img_path)
-                w, h = img.size
-
-                # Scale up for better recognition
-                scale = 3
-                results = []
-                for top in range(0, h - 40, 40):
-                    bot = min(top + 80, h)
-                    crop = img.crop((0, top, w, bot)).convert("L")
-                    crop = crop.resize((crop.width * scale, crop.height * scale), Image.LANCZOS)
-                    crop = ImageEnhance.Contrast(crop).enhance(2.5)
-                    crop = ImageEnhance.Sharpness(crop).enhance(3.0)
-                    text = pytesseract.image_to_string(crop, lang="chi_sim+eng", config="--psm 6")
-                    for line in text.split("\n"):
-                        line = line.strip()
-                        if len(line) > 1:
-                            results.append((top, line))
-
-                all_text = " ".join(t for _, t in results)
-
-                # Detect platform
-                is_alipay = sum(1 for kw in ["余额宝", "基金", "支付宝", "总资产"] if kw in all_text)
-                is_wechat = sum(1 for kw in ["零钱", "零钱通", "微信", "钱包"] if kw in all_text)
-
-                # Extract amounts from text
-                import re
-                amounts = []
-                for y, text in results:
-                    nums = re.findall(r"[\d,]+\.?\d{0,2}", text)
-                    for n in nums:
-                        n = n.replace(",", "")
-                        try:
-                            val = float(n)
-                            if 1 < val < 10_000_000:
-                                amounts.append((y, val, text))
-                        except ValueError:
-                            pass
-
-                # Extract asset fields
-                if is_alipay >= is_wechat:
-                    for y, text in results:
-                        if "余额宝" in text:
-                            for y2, val, ctx in amounts:
-                                if abs(y2 - y) < 100:
-                                    all_assets.setdefault("alipay_yuebao", val)
-                        if "基金" in text:
-                            for y2, val, ctx in amounts:
-                                if abs(y2 - y) < 100:
-                                    all_assets.setdefault("alipay_fund", val)
-                    # "余额" but not "余额宝"
-                    for y, text in results:
-                        if "余额" in text and "余额宝" not in text:
-                            for y2, val, ctx in amounts:
-                                if abs(y2 - y) < 100 and val > 1:
-                                    all_assets.setdefault("alipay_balance", val)
-
-                if is_wechat >= is_alipay:
-                    for y, val, ctx in amounts:
-                        if "零钱" in ctx and "通" not in ctx:
-                            all_assets.setdefault("wechat_balance", val)
-                        if "零钱通" in ctx:
-                            all_assets.setdefault("wechat_licaitong", val)
-
-            except Exception as e:
-                print(f"  [WARN] OCR failed for {img_path.name}: {e}")
-
-        return all_assets
-
-    except ImportError:
-        print("  [WARN] pytesseract/PIL not available, skipping OCR")
-        return {}
+def _prev_month_key(month: str) -> str:
+    """Return the previous month key, e.g. '2026.5' -> '2026.4'."""
+    parts = month.split(".")
+    y, m = int(parts[0]), int(parts[1])
+    if m == 1:
+        return f"{y - 1}.12"
+    return f"{y}.{m - 1}"
 
 
 # ─── Core logic ───────────────────────────────────────────────────────
 
-def import_month(month: str, skip_ocr: bool = False, person_filter: str | None = None,
+def import_month(month: str, person_filter: str | None = None,
                  dry_run: bool = False):
     """Import one month's data from bills directory.
 
     Args:
         month: Month key like "2026.5"
-        skip_ocr: If True, skip screenshot OCR
         person_filter: If set, only import this person ("BB" or "LN")
         dry_run: If True, parse and classify but don't write
     """
@@ -282,59 +171,80 @@ def import_month(month: str, skip_ocr: bool = False, person_filter: str | None =
                 except Exception as e:
                     print(f"    [WARN] Failed to parse {fp.name}: {e}")
 
-        # ── Step 3: Classify all transactions ──
-        expense_count = 0
-        income_count = 0
+        # ── Step 3: Classify and filter all transactions ──
+        from config import SKIP_KEYWORDS
         for t in all_transactions:
-            if t.amount > 0:
-                t.target_category = classify_income(t.description, t.counterparty)
-            else:
-                t.target_category = classify(t.source, t.raw_category,
-                                             t.description, t.amount)
+            # Skip known non-expense transactions (e.g. 小荷包自动攒)
+            if t.target_category != "__skip__":
+                desc_check = (t.description + " " + (t.raw_category or "")).lower()
+                if any(kw.lower() in desc_check for kw in SKIP_KEYWORDS):
+                    t.target_category = "__skip__"
 
-            # Skip special markers
-            if t.target_category in ("__skip__",):
+            # Classify
+            if t.target_category != "__skip__":
+                if t.amount > 0:
+                    t.target_category = classify_income(t.description, t.counterparty)
+                else:
+                    t.target_category = classify(t.source, t.raw_category,
+                                                 t.description, t.amount, t.counterparty)
+
+                # Skip special markers
+                if t.target_category in ("__skip__", "__income__"):
+                    t.target_category = "__skip__"
+
+        # Filter out skipped/income transactions, separate by sign
+        active_txns = [t for t in all_transactions if t.target_category != "__skip__"]
+        new_expenses = [t for t in active_txns if t.amount < 0]
+        new_income = [t for t in active_txns if t.amount > 0]
+
+        # ── Step 3b: Remove cancelled orders that have corresponding refunds ──
+        # If a transaction was cancelled (交易关闭) and has a matching refund,
+        # exclude both the expense and the refund income.
+        for t in all_transactions:
+            if t.target_category == "__skip__":
                 continue
-
-        # Separate into expenses and income
-        new_expenses = [t for t in all_transactions if t.amount < 0]
-        new_income = [t for t in all_transactions if t.amount > 0]
+            if t.status == "交易关闭" and t.amount < 0:
+                # Look for matching refund in new_income (Transaction objects)
+                amt = abs(t.amount)
+                for inc in new_income:
+                    if abs(inc.amount - amt) < 0.01 and "退款" in (inc.description or ""):
+                        t.target_category = "__skip__"
+                        inc.target_category = "__skip__"
+                        break
+        # Re-filter after removing closed+refund pairs
+        new_expenses = [t for t in new_expenses if t.target_category != "__skip__"]
+        new_income = [t for t in new_income if t.target_category != "__skip__"]
 
         expense_count = len(new_expenses)
         income_count = len(new_income)
 
-        # ── Step 4: Add to monthly data ──
-        # Remove old entries for this person (replace, not append)
-        monthly.expenses[person_code] = new_expenses
-        monthly.income[person_code] = [
-            IncomeRecord(
-                person=person_code,
-                time=t.time,
-                category=t.target_category or "其他",
-                amount=t.amount,
-                channel="支付宝" if t.source == "alipay" else "微信",
-                account=t.counterparty,
-                note=t.description,
-            )
-            for t in new_income
-        ]
+        # ── Step 4: Add expenses to monthly data; merge income ──
+        # Merge expenses: keep any existing manual entries, add CSV-derived ones
+        existing_expenses = monthly.expenses.get(person_code, [])
+        manual_expenses = [t for t in existing_expenses if getattr(t, 'source', '') == 'manual']
+        monthly.expenses[person_code] = manual_expenses + new_expenses
 
-        # ── Step 5: OCR screenshots ──
-        if not skip_ocr and person_dir != month_dir:
-            ocr_results = run_ocr_for_person(person_dir, person_code)
-            if ocr_results:
-                print(f"  OCR found: {ocr_results}")
-                asset = AssetSnapshot(
-                    person=person_code,
-                    month=month,
-                    alipay_fund=ocr_results.get("alipay_fund", 0),
-                    alipay_yuebao=ocr_results.get("alipay_yuebao", 0),
-                    alipay_balance=ocr_results.get("alipay_balance", 0),
-                    wechat_balance=ocr_results.get("wechat_balance", 0),
-                    wechat_licaitong=ocr_results.get("wechat_licaitong", 0),
+        # Merge income: keep existing manual income, add new CSV-derived income
+        # Deduplicate by (amount, time, note) to avoid duplicates
+        existing_income = monthly.income.get(person_code, [])
+        existing_keys = {(abs(r.amount), r.time.isoformat() if hasattr(r.time, 'isoformat') else str(r.time), r.note)
+                        for r in existing_income}
+        for t in new_income:
+            key = (abs(t.amount), t.time.isoformat(), t.description)
+            if key not in existing_keys:
+                existing_keys.add(key)
+                existing_income.append(
+                    IncomeRecord(
+                        person=person_code,
+                        time=t.time,
+                        category=t.target_category or "其他",
+                        amount=t.amount,
+                        channel="支付宝" if t.source == "alipay" else "微信",
+                        account=t.counterparty,
+                        note=t.description,
+                    )
                 )
-                monthly.assets[person_code] = asset
-                monthly.last_balance[person_code] = asset.total
+        monthly.income[person_code] = existing_income
 
         stats[person_code] = {
             "expenses": expense_count,
@@ -378,16 +288,11 @@ def import_month(month: str, skip_ocr: bool = False, person_filter: str | None =
 
 def main():
     parser = argparse.ArgumentParser(
-        description="One-click monthly import: parse bills + OCR + write"
+        description="One-click monthly import: parse bills + write to JSON & Excel"
     )
     parser.add_argument(
         "month",
         help="Month to import, e.g. '2026.5'",
-    )
-    parser.add_argument(
-        "--skip-ocr",
-        action="store_true",
-        help="Skip screenshot OCR processing",
     )
     parser.add_argument(
         "--person",
@@ -410,7 +315,6 @@ def main():
 
     sys.exit(import_month(
         month=args.month,
-        skip_ocr=args.skip_ocr,
         person_filter=args.person,
         dry_run=args.dry_run,
     ))

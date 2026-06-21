@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Transaction, OcrResult, MonthlySummary, TrendDataPoint } from '../types';
+import type { Transaction, MonthlySummary, TrendDataPoint } from '../types';
 import * as api from '../api';
 
 interface AppState {
@@ -23,9 +23,6 @@ interface AppState {
   setImportStep: (step: number) => void;
   setImportLoading: (loading: boolean) => void;
   setPreviewData: (data: Transaction[], stats?: AppState['previewStatistics']) => void;
-
-  ocrResults: OcrResult[];
-  setOcrResults: (results: OcrResult[]) => void;
 
   summary: MonthlySummary | null;
   trendData: TrendDataPoint[];
@@ -60,9 +57,6 @@ export const useAppStore = create<AppState>()(
       setImportLoading: (loading) => set({ importLoading: loading }),
       setPreviewData: (data, stats) =>
         set({ previewData: data, previewStatistics: stats ?? null }),
-
-      ocrResults: [],
-      setOcrResults: (results) => set({ ocrResults: results }),
 
       summary: null,
       trendData: [],

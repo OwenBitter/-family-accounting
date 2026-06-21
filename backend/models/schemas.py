@@ -68,10 +68,12 @@ class AssetSnapshot:
 
     @property
     def total(self):
+        EXCLUDE_KEYS = {"总额", "总计"}
+        bank_sum = sum(v for k, v in self.bank_accounts.items() if k not in EXCLUDE_KEYS)
         return round(
             self.alipay_fund + self.alipay_yuebao + self.alipay_balance
             + self.wechat_balance + self.wechat_licaitong
-            + sum(self.bank_accounts.values()) + sum(self.other.values()), 2
+            + bank_sum + sum(self.other.values()), 2
         )
 
     def to_dict(self):

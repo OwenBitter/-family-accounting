@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Steps, Button, Select, Upload, Table, message, Alert, Space, Card, InputNumber, Tag } from 'antd';
-import { InboxOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Steps, Button, Select, Upload, Table, message, Alert, Space, Card, InputNumber, Input, DatePicker } from 'antd';
+import { InboxOutlined, ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import * as api from '../../api';
-import type { Transaction, OcrResult } from '../../types';
+import type { Transaction } from '../../types';
+import dayjs from 'dayjs';
 
 const { Dragger } = Upload;
 
@@ -27,8 +28,8 @@ export default function ImportPage() {
       <Card className="chart-card" title="导入支出（支付宝 CSV / 微信 xlsx）">
         <ImportExpense />
       </Card>
-      <Card className="chart-card" style={{ marginTop: 16 }} title="识别收入与余额（截图 OCR）">
-        <OcrIncome />
+      <Card className="chart-card" style={{ marginTop: 16 }} title="手动记账">
+        <ManualEntry />
       </Card>
     </div>
   );
@@ -191,118 +192,104 @@ function ImportExpense() {
   );
 }
 
-/* ─── 识别收入（OCR 截图） ─── */
-function OcrIncome() {
-  const [month, setMonth] = useState('');
+/* ─── 手动记账 ─── */
+function ManualEntry() {
+  const currentMonth = useAppStore((s) => s.currentMonth);
   const [person, setPerson] = useState<'BB' | 'LN'>('BB');
-  const [fileList, setFileList] = useState<any[]>([]);
-  const [results, setResults] = useState<OcrResult[]>([]);
+  const [monthYear, setMonthYear] = useState<string>(currentMonth?.split('.')[0] || dayjs().format('YYYY'));
+  const [monthNum, setMonthNum] = useState<string>(currentMonth?.split('.')[1] || dayjs().format('M'));
+  const [date, setDate] = useState<string>(dayjs().format('YYYY-MM-DDTHH:mm:ss'));
+  const [amount, setAmount] = useState<number | null>(null);
+  const [category, setCategory] = useState<string>('其他');
+  const [description, setDescription] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('支付宝');
   const [loading, setLoading] = useState(false);
-  const [editingFields, setEditingFields] = useState<Record<string, Record<string, number>>>({});
+  const [added, setAdded] = useState<number>(0);
+  const month = `${monthYear}.${monthNum}`;
 
-  const handleOcr = async () => {
-    if (fileList.length === 0) { message.error('请上传截图'); return; }
-    setLoading(true);
-    try {
-      const files = fileList.map((f) => f.originFileObj);
-      const res = await api.ocrUpload(person, files);
-      setResults(res.results);
-      const fields: Record<string, Record<string, number>> = {};
-      res.results.forEach((r, idx) => { fields[String(idx)] = { ...r.fields }; });
-      setEditingFields(fields);
-    } catch (err: any) {
-      message.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfirm = async () => {
+  const handleSubmit = async () => {
+    if (!amount || amount <= 0) { message.error('请输入金额'); return; }
+    if (!description.trim()) { message.error('请输入描述'); return; }
     if (!month) { message.error('请选择月份'); return; }
+
+    const txn: any = {
+      person,
+      source: 'manual',
+      time: date,
+      rawCategory: category,
+      targetCategory: category,
+      amount: -amount,
+      paymentMethod,
+      description: description.trim(),
+      counterparty: '',
+      status: 'completed',
+      order_id: `manual_${Date.now()}`,
+    };
+
     setLoading(true);
     try {
-      const mergedData: Record<string, unknown> = {};
-      Object.values(editingFields).forEach((fields) => Object.assign(mergedData, fields));
-      await api.ocrConfirm(month, person, mergedData);
-      message.success('资产数据已保存');
+      await api.importConfirm(person, month, [txn]);
+      message.success(`已记录支出 ¥${amount?.toFixed(2)}`);
+      setAdded((n) => n + 1);
+      // Reset form
+      setAmount(null);
+      setDescription('');
+      setCategory('其他');
+      setDate(dayjs().format('YYYY-MM-DDTHH:mm:ss'));
     } catch (err: any) {
       message.error(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const updateField = (idx: string, key: string, value: number) => {
-    setEditingFields((prev) => ({ ...prev, [idx]: { ...prev[idx], [key]: value } }));
-  };
-
-  const fieldLabels: Record<string, string> = {
-    alipay_fund: '基金', alipay_yuebao: '余额宝', alipay_balance: '余额',
-    wechat_balance: '零钱', wechat_licaitong: '零钱通', bank_balance: '可用余额',
   };
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      <Space>
-        <Select value={month.split('.')[0] || undefined}
-          onChange={(y) => setMonth(y ? `${y}.${month.split('.')[1] || '1'}` : '')}
-          options={yearOptions} placeholder="年" style={{ width: 100 }} allowClear />
-        <span style={{ color: '#a0a0a0', margin: '0 4px' }}>年</span>
-        <Select value={month.split('.')[1] || undefined}
-          onChange={(m) => setMonth(m ? `${month.split('.')[0] || '2026'}.${m}` : '')}
-          options={monthOptions} placeholder="月" style={{ width: 90 }} allowClear />
-        <span style={{ color: '#a0a0a0', margin: '0 4px' }}>月</span>
-        <Space>
-          <Button type={person === 'BB' ? 'primary' : 'default'} onClick={() => setPerson('BB')}>斌的截图</Button>
-          <Button type={person === 'LN' ? 'primary' : 'default'} onClick={() => setPerson('LN')}>纳的截图</Button>
-        </Space>
+      <Space wrap>
+        <div>
+          <div style={{ marginBottom: 4, color: '#a0a0a0', fontSize: 12 }}>人员</div>
+          <Button type={person === 'BB' ? 'primary' : 'default'} size="small" onClick={() => setPerson('BB')}>斌</Button>
+          <Button type={person === 'LN' ? 'primary' : 'default'} size="small" onClick={() => setPerson('LN')} style={{ marginLeft: 4 }}>纳</Button>
+        </div>
+        <div>
+          <div style={{ marginBottom: 4, color: '#a0a0a0', fontSize: 12 }}>月份</div>
+          <Select value={monthYear} onChange={setMonthYear} style={{ width: 85 }}
+            options={Array.from({ length: 10 }, (_, i) => ({ value: String(2020 + i), label: `${2020 + i}年` }))} />
+          <Select value={monthNum} onChange={setMonthNum} style={{ width: 70 }}
+            options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `${i + 1}月` }))} />
+        </div>
+        <div>
+          <div style={{ marginBottom: 4, color: '#a0a0a0', fontSize: 12 }}>日期</div>
+          <DatePicker showTime value={dayjs(date)} onChange={(d) => setDate(d?.format('YYYY-MM-DDTHH:mm:ss') || dayjs().format('YYYY-MM-DDTHH:mm:ss'))} />
+        </div>
+        <div>
+          <div style={{ marginBottom: 4, color: '#a0a0a0', fontSize: 12 }}>金额</div>
+          <InputNumber value={amount} onChange={setAmount} min={0} precision={2} prefix="¥" style={{ width: 140 }} placeholder="0.00" />
+        </div>
+        <div>
+          <div style={{ marginBottom: 4, color: '#a0a0a0', fontSize: 12 }}>分类</div>
+          <Select value={category} onChange={setCategory} style={{ width: 180 }}
+            options={categories.map((c) => ({ value: c, label: c }))} />
+        </div>
+        <div>
+          <div style={{ marginBottom: 4, color: '#a0a0a0', fontSize: 12 }}>支付方式</div>
+          <Select value={paymentMethod} onChange={setPaymentMethod} style={{ width: 100 }}
+            options={[
+              { value: '支付宝', label: '支付宝' },
+              { value: '微信支付', label: '微信支付' },
+              { value: '银行卡', label: '银行卡' },
+              { value: '现金', label: '现金' },
+            ]} />
+        </div>
       </Space>
-
-      <Dragger multiple accept=".png,.jpg,.jpeg" fileList={fileList}
-        onChange={({ fileList: fl }) => setFileList(fl)} beforeUpload={() => false}>
-        <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-        <p className="ant-upload-text">上传支付宝/微信/银行卡截图</p>
-        <p className="ant-upload-hint">支持 PNG、JPG 格式，单张不超过 5MB</p>
-      </Dragger>
-
-      <Button type="primary" loading={loading} onClick={handleOcr}>开始识别</Button>
-
-      {results.length > 0 && (
-        <>
-          {results.map((r, idx) => (
-            <Card key={idx} size="small"
-              title={`${r.filename} — ${channelLabel(r.channel)}`}
-              extra={<Tag color={r.confidence > 0.8 ? 'green' : r.confidence > 0.6 ? 'orange' : 'red'}>{Math.round(r.confidence * 100)}%</Tag>}>
-              {r.note && (
-                <Alert type="info" showIcon message={r.note} style={{ marginBottom: 12 }} />
-              )}
-              {r.detectedPerson && r.detectedPerson !== person && (
-                <Alert type="warning" showIcon message={`检测到此截图可能是 ${r.detectedPerson} 的账户`} style={{ marginBottom: 12 }} />
-              )}
-              {Object.keys(r.fields).length > 0 && (
-                <Table dataSource={Object.entries(r.fields).map(([key, val]) => ({
-                  key, field: fieldLabels[key] || key,
-                  value: editingFields[String(idx)]?.[key] ?? val,
-                }))} columns={[
-                  { title: '字段', dataIndex: 'field', width: 120 },
-                  { title: '金额', dataIndex: 'value',
-                    render: (val: number, record) => (
-                      <InputNumber value={val} onChange={(v) => updateField(String(idx), record.key, v ?? 0)}
-                        min={0} precision={2} prefix="¥" style={{ width: 180 }} />
-                    ),
-                  },
-                ]} pagination={false} size="small" />
-              )}
-            </Card>
-          ))}
-          <Button type="primary" size="large" loading={loading} onClick={handleConfirm}>确认保存</Button>
-        </>
-      )}
+      <Space wrap style={{ width: '100%' }}>
+        <Input value={description} onChange={(e) => setDescription(e.target.value)}
+          placeholder="输入支出描述…" style={{ width: 360 }} allowClear />
+        <Button type="primary" icon={<PlusOutlined />} loading={loading} onClick={handleSubmit}>
+          记录支出
+        </Button>
+        {added > 0 && <span style={{ color: '#52c41a', fontSize: 13 }}>已记录 {added} 笔</span>}
+      </Space>
     </Space>
   );
-}
-
-function channelLabel(channel: string): string {
-  const map: Record<string, string> = { alipay: '支付宝', wechat: '微信', bank_card: '银行卡', unknown: '未知' };
-  return map[channel] || channel;
 }

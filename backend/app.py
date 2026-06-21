@@ -13,7 +13,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 
 import config
-from models.schemas import MonthlyData, AssetSnapshot
+from models.schemas import MonthlyData, AssetSnapshot, IncomeRecord
 from services.data_store import DataStore
 from services.excel_reader import parse_alipay_csv, parse_wechat_xlsx
 from services.excel_writer import create_monthly_book
@@ -21,8 +21,10 @@ from services.classifier import classify, classify_income, get_all_categories
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173",
+                                               "http://localhost:5174",
                                                "http://localhost:3000",
-                                               "http://127.0.0.1:5173"]}})
+                                               "http://127.0.0.1:5173",
+                                               "http://127.0.0.1:5174"]}})
 
 app.config["MAX_CONTENT_LENGTH"] = config.MAX_CONTENT_LENGTH
 app.config["UPLOAD_FOLDER"] = str(config.UPLOAD_DIR)
@@ -249,95 +251,18 @@ def import_confirm():
     })
 
 
-# ─── OCR ────────────────────────────────────────────────────────────
-
-@app.route("/api/ocr/upload", methods=["POST"])
-def ocr_upload():
-    """Upload screenshot images and run OCR."""
-    person = request.form.get("person", "")
-    images = request.files.getlist("images")
-
-    if not images:
-        raise AppError("INVALID_PARAM", "请至少上传一张图片")
-
-    from services.ocr_service import process_screenshot
-
-    results = []
-    for img_file in images:
-        img_data = img_file.read()
-        result = process_screenshot(img_data)
-        result["filename"] = img_file.filename
-        results.append(result)
-
-    return jsonify({
-        "success": True,
-        "results": results,
-    })
-
-
-@app.route("/api/ocr/confirm", methods=["POST"])
-def ocr_confirm():
-    """Confirm OCR results, update income and assets."""
-    data = request.get_json()
-    if not data:
-        raise AppError("INVALID_PARAM", "请求体不能为空")
-
-    month = data.get("month", "")
-    person = data.get("person", "")
-    asset_data = data.get("data", {})
-
-    if person not in config.PERSONS or not month:
-        raise AppError("INVALID_PARAM", "人员或月份参数无效")
-
-    monthly = data_store.get_month(month)
-    if monthly is None:
-        monthly = MonthlyData(month=month)
-
-    # Create/update asset snapshot
-    asset = AssetSnapshot(
-        person=person,
-        month=month,
-        alipay_fund=asset_data.get("alipay_fund", 0),
-        alipay_yuebao=asset_data.get("alipay_yuebao", 0),
-        alipay_balance=asset_data.get("alipay_balance", 0),
-        wechat_balance=asset_data.get("wechat_balance", 0),
-        wechat_licaitong=asset_data.get("wechat_licaitong", 0),
-        bank_accounts=asset_data.get("bank_accounts", {}),
-        other=asset_data.get("other", {}),
-        loan_receivable=asset_data.get("loan_receivable", 0),
-    )
-    monthly.assets[person] = asset
-
-    # Also add income records if provided
-    for rec in data.get("income_records", []):
-        from models.schemas import IncomeRecord
-        from datetime import datetime
-        income = IncomeRecord(
-            person=person,
-            time=datetime.strptime(rec.get("time", ""), "%Y-%m-%d") if rec.get("time") else datetime.now(),
-            category=rec.get("category", "其他"),
-            amount=rec.get("amount", 0),
-            channel=rec.get("channel", ""),
-            account=rec.get("account", ""),
-            note=rec.get("note", ""),
-        )
-        monthly.income[person].append(income)
-
-    # Update last_balance for next month
-    monthly.last_balance[person] = asset.total
-
-    try:
-        file_path = create_monthly_book(month, monthly)
-    except Exception as e:
-        raise AppError("EXCEL_WRITE_ERROR", f"Excel 写入失败: {e}")
-
-    data_store.save_month(month, monthly)
-    data_store.rebuild_index()
-
-    return jsonify({"success": True, "filePath": file_path})
-
-
 # ─── Data ───────────────────────────────────────────────────────────
+
+def _prev_month(month: str) -> str:
+    """Return previous month string, e.g. '2026.5' → '2026.4'."""
+    parts = month.split(".")
+    if len(parts) != 2:
+        return ""
+    y, m = int(parts[0]), int(parts[1])
+    if m == 1:
+        return f"{y - 1}.12"
+    return f"{y}.{m - 1}"
+
 
 @app.route("/api/data/summary")
 def data_summary():
@@ -365,26 +290,38 @@ def data_summary():
     # grandTotal = 个人资产 + 外借资产（不重复加其他资产，因可能是总计数）
     grand_total = round(bb_total + ln_total + external_asset, 2)
 
+    # Compute "本月攒" as asset change: current month minus previous month
+    prev_monthly = data_store.get_month(_prev_month(month))
+    if prev_monthly and prev_monthly.assets.get("BB") and prev_monthly.assets.get("LN"):
+        prev_bb = prev_monthly.assets["BB"].total
+        prev_ln = prev_monthly.assets["LN"].total
+        bb_saved = round(bb_total - prev_bb, 2) if bb_asset else 0
+        ln_saved = round(ln_total - prev_ln, 2) if ln_asset else 0
+    else:
+        # Fallback to income - expense if no previous month data
+        bb_saved = round(bb_income - bb_expense, 2)
+        ln_saved = round(ln_income - ln_expense, 2)
+
     result = {
         "month": month,
         "bb": {
             "lastBalance": monthly.last_balance.get("BB", 0),
             "income": round(bb_income, 2),
             "expense": round(bb_expense, 2),
-            "saved": round(bb_income - bb_expense, 2),
+            "saved": bb_saved,
             "total": bb_total,
         },
         "ln": {
             "lastBalance": monthly.last_balance.get("LN", 0),
             "income": round(ln_income, 2),
             "expense": round(ln_expense, 2),
-            "saved": round(ln_income - ln_expense, 2),
+            "saved": ln_saved,
             "total": ln_total,
         },
         "total": {
             "income": round(bb_income + ln_income, 2),
             "expense": round(bb_expense + ln_expense, 2),
-            "saved": round((bb_income - bb_expense) + (ln_income - ln_expense), 2),
+            "saved": round(bb_saved + ln_saved, 2),
             "grandTotal": grand_total,
             "externalAsset": round(external_asset, 2),
             "otherAsset": round(other_asset, 2),
@@ -413,8 +350,10 @@ def data_expenses():
             for t in monthly.expenses.get(person, []):
                 if t.amount >= 0:
                     continue
-                details.append(t.to_dict())
-                cat = t.target_category or t.raw_category
+                d = t.to_dict()
+                cat = t.target_category or classify(t.source, t.raw_category, t.description, t.amount, t.counterparty)
+                d["liveCategory"] = cat
+                details.append(d)
                 if cat not in analysis_map:
                     analysis_map[cat] = {"category": cat, "bbAmount": 0, "lnAmount": 0, "totalAmount": 0}
                 analysis_map[cat][f"{person.lower()}Amount"] += abs(t.amount)
@@ -474,6 +413,49 @@ def data_assets():
     return jsonify({"success": True, "data": result})
 
 
+@app.route("/api/data/assets", methods=["PUT"])
+def update_assets():
+    """Update asset data for a person in a month."""
+    data = request.get_json()
+    if not data:
+        raise AppError("INVALID_PARAM", "请求体不能为空")
+
+    month = data.get("month", "")
+    person = data.get("person", "")
+
+    if person not in config.PERSONS or not month:
+        raise AppError("INVALID_PARAM", "人员或月份参数无效")
+
+    monthly = data_store.get_month(month)
+    if monthly is None:
+        monthly = MonthlyData(month=month)
+
+    asset = AssetSnapshot(
+        person=person,
+        month=month,
+        alipay_fund=data.get("alipay_fund", 0),
+        alipay_yuebao=data.get("alipay_yuebao", 0),
+        alipay_balance=data.get("alipay_balance", 0),
+        wechat_balance=data.get("wechat_balance", 0),
+        wechat_licaitong=data.get("wechat_licaitong", 0),
+        bank_accounts=data.get("bank_accounts", {}),
+        other=data.get("other", {}),
+        loan_receivable=data.get("loan_receivable", 0),
+    )
+    monthly.assets[person] = asset
+    monthly.last_balance[person] = asset.total
+
+    try:
+        file_path = create_monthly_book(month, monthly)
+    except Exception as e:
+        raise AppError("EXCEL_WRITE_ERROR", f"Excel 写入失败: {e}")
+
+    data_store.save_month(month, monthly)
+    data_store.rebuild_index()
+
+    return jsonify({"success": True, "filePath": file_path})
+
+
 @app.route("/api/data/income")
 def data_income():
     """Get income records for a month."""
@@ -491,6 +473,54 @@ def data_income():
     return jsonify({"success": True, "records": records})
 
 
+@app.route("/api/data/income", methods=["PUT"])
+def update_income():
+    """Replace all income records for a person in a month."""
+    data = request.get_json()
+    if not data:
+        raise AppError("INVALID_PARAM", "请求体不能为空")
+
+    month = data.get("month", "")
+    person = data.get("person", "")
+
+    if person not in config.PERSONS or not month:
+        raise AppError("INVALID_PARAM", "人员或月份参数无效")
+
+    monthly = data_store.get_month(month)
+    if monthly is None:
+        monthly = MonthlyData(month=month)
+
+    records = data.get("records", [])
+    from datetime import datetime
+    new_income = []
+    for rec in records:
+        try:
+            t = datetime.strptime(rec.get("time", ""), "%Y-%m-%d") if rec.get("time") else datetime.now()
+        except (ValueError, TypeError):
+            t = datetime.now()
+        new_income.append(IncomeRecord(
+            person=person,
+            time=t,
+            category=rec.get("category", "其他"),
+            amount=rec.get("amount", 0),
+            channel=rec.get("channel", ""),
+            account=rec.get("account", ""),
+            note=rec.get("note", ""),
+        ))
+
+    monthly.income[person] = new_income
+
+    try:
+        file_path = create_monthly_book(month, monthly)
+    except Exception as e:
+        raise AppError("EXCEL_WRITE_ERROR", f"Excel 写入失败: {e}")
+
+    data_store.save_month(month, monthly)
+    data_store.rebuild_index()
+
+    return jsonify({"success": True, "filePath": file_path})
+
+
 @app.route("/api/data/history")
 def data_history():
     """Get list of available months."""
@@ -506,6 +536,7 @@ def data_trend():
         return jsonify({"success": True, "data": []})
 
     trend_data = []
+    prev_monthly = None
     for month in months:
         monthly = data_store.get_month(month)
         if not monthly:
@@ -518,12 +549,27 @@ def data_trend():
         bb_income = sum(r.amount for r in monthly.income.get("BB", []))
         ln_income = sum(r.amount for r in monthly.income.get("LN", []))
 
+        # "本月攒" as asset change: current minus previous month
+        bb_asset = monthly.assets.get("BB")
+        ln_asset = monthly.assets.get("LN")
+        bb_total = round(bb_asset.total, 2) if bb_asset else 0
+        ln_total = round(ln_asset.total, 2) if ln_asset else 0
+
+        if prev_monthly and prev_monthly.assets.get("BB") and prev_monthly.assets.get("LN"):
+            prev_bb = prev_monthly.assets["BB"].total
+            prev_ln = prev_monthly.assets["LN"].total
+            saved = round((bb_total - prev_bb) + (ln_total - prev_ln), 2)
+        else:
+            saved = round((bb_income + ln_income) - (bb_expense + ln_expense), 2)
+
         trend_data.append({
             "month": month,
             "income": round(bb_income + ln_income, 2),
             "expense": round(bb_expense + ln_expense, 2),
-            "saved": round((bb_income + ln_income) - (bb_expense + ln_expense), 2),
+            "saved": saved,
         })
+
+        prev_monthly = monthly
 
     return jsonify({"success": True, "data": trend_data})
 

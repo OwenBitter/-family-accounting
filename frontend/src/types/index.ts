@@ -1,9 +1,11 @@
 export interface Transaction {
   person: 'BB' | 'LN';
-  source: 'alipay' | 'wechat';
+  source: 'alipay' | 'wechat' | 'xlsx' | 'manual';
   time: string;
   rawCategory: string;
   targetCategory: string;
+  /** 实时分类（由后端当前分类规则决定，与 analysis 一致） */
+  liveCategory?: string;
   amount: number;
   paymentMethod: string;
   description: string;
@@ -47,6 +49,16 @@ export interface CategoryAnalysis {
   totalAmount: number;
 }
 
+export interface IncomeRecord {
+  person: 'BB' | 'LN';
+  time: string;
+  category: string;
+  amount: number;
+  channel: string;
+  account: string;
+  note: string;
+}
+
 export interface AssetData {
   person: 'BB' | 'LN';
   alipayFund: number;
@@ -57,22 +69,6 @@ export interface AssetData {
   bankAccounts: Record<string, number>;
   other: Record<string, number>;
   total: number;
-}
-
-export interface OcrField {
-  label: string;
-  key: string;
-  amount: number;
-  confidence: number;
-}
-
-export interface OcrResult {
-  filename: string;
-  channel: 'alipay' | 'wechat' | 'bank_card' | 'unknown';
-  fields: Record<string, number>;
-  confidence: number;
-  detectedPerson?: string | null;
-  note?: string;
 }
 
 export interface TrendDataPoint {

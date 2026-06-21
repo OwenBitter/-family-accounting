@@ -4,7 +4,6 @@ import type {
   MonthlySummary,
   CategoryAnalysis,
   AssetData,
-  OcrResult,
   TrendDataPoint,
 } from '../types';
 
@@ -98,27 +97,6 @@ export async function importConfirm(
   return http.post('/import/confirm', { person, month, transactions });
 }
 
-export async function ocrUpload(
-  person: string,
-  images: File[]
-): Promise<{ success: boolean; results: OcrResult[] }> {
-  const form = new FormData();
-  form.append('person', person);
-  images.forEach((img) => form.append('images', img));
-  return http.post('/ocr/upload', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-}
-
-export async function ocrConfirm(
-  month: string,
-  person: string,
-  data: Record<string, unknown>,
-  incomeRecords?: Record<string, unknown>[]
-): Promise<{ success: boolean; filePath: string }> {
-  return http.post('/ocr/confirm', { month, person, data, income_records: incomeRecords });
-}
-
 export async function fetchSummary(month: string): Promise<{ success: boolean; data: MonthlySummary | null }> {
   return http.get('/data/summary', { params: { month } });
 }
@@ -135,6 +113,14 @@ export async function fetchAssets(month: string): Promise<{ success: boolean; da
   return http.get('/data/assets', { params: { month } });
 }
 
+export async function updateAssets(
+  month: string,
+  person: string,
+  data: Record<string, unknown>
+): Promise<{ success: boolean; filePath: string }> {
+  return http.put('/data/assets', { month, person, ...data });
+}
+
 export async function fetchInvestments(): Promise<{
   success: boolean; loanBook: import('../types').LoanRecord[]; gold: import('../types').GoldItem[];
 }> {
@@ -145,8 +131,16 @@ export async function fetchGoldPrice(): Promise<{ success: boolean; pricePerGram
   return http.get('/data/gold-price');
 }
 
-export async function fetchIncome(month: string): Promise<{ success: boolean; records: Transaction[] }> {
+export async function fetchIncome(month: string): Promise<{ success: boolean; records: import('../types').IncomeRecord[] }> {
   return http.get('/data/income', { params: { month } });
+}
+
+export async function updateIncome(
+  month: string,
+  person: string,
+  records: Record<string, unknown>[]
+): Promise<{ success: boolean; filePath: string }> {
+  return http.put('/data/income', { month, person, records });
 }
 
 export async function fetchHistory(): Promise<{ success: boolean; availableMonths: string[] }> {

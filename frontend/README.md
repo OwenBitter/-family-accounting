@@ -15,7 +15,7 @@ npm run preview # 预览构建结果
 | 路径 | 页面 | 说明 |
 |------|------|------|
 | `/` | Dashboard | 总览仪表盘：统计卡片、趋势图、分类分析、资产构成 |
-| `/import` | Import | 导入支出（xlsx/CSV）+ 识别收入（截图） |
+| `/import` | Import | 导入支出（xlsx/CSV） + 手动记账 |
 | `/investment` | Investment | 黄金资产 + 外借资产明细 |
 
 ## 项目结构
@@ -27,7 +27,7 @@ src/
 ├── AppLayout.tsx         # 侧边栏布局
 ├── pages/
 │   ├── Dashboard/        # 仪表盘（统计卡片、ECharts 图表）
-│   ├── Import/           # 导入页（Step 向导 + OCR 卡片）
+│   ├── Import/           # 导入页（文件上传 + 手动记账）
 │   └── Investment/       # 投资页（黄金/外借表格）
 ├── components/           # 通用组件
 ├── api/index.ts          # axios 封装（camelCase/snake_case 拦截器）
