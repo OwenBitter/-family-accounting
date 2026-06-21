@@ -4,6 +4,7 @@ import {
   WalletOutlined, ArrowUpOutlined, ArrowDownOutlined, SaveOutlined, DownloadOutlined, EditOutlined, DollarOutlined,
 } from '@ant-design/icons';
 import ReactEChartsCore from 'echarts-for-react';
+import echarts from '../../utils/echarts';
 import { useAppStore } from '../../store/useAppStore';
 import * as api from '../../api';
 import StatCard from '../../components/StatCard';
@@ -602,7 +603,7 @@ export default function DashboardPage() {
                 <Col xs={24} md={16}>
                   <Card type="inner" styles={{ body: { padding: 14 } }} style={{ borderRadius: 18, borderColor: '#f0e8d8' }}>
                     {annualOption ? (
-                      <ReactEChartsCore option={annualOption} style={{ height: 320 }} />
+                      <ReactEChartsCore echarts={echarts} option={annualOption} style={{ height: 320 }} />
                     ) : (
                       <Empty description="暂无当年数据" style={{ marginTop: 16 }} />
                     )}
@@ -683,7 +684,7 @@ export default function DashboardPage() {
                 </Row>
                 {assetStackOption && (
                   <div style={{ marginTop: 22 }}>
-                    <ReactEChartsCore option={assetStackOption} style={{ height: 200 }} />
+                    <ReactEChartsCore echarts={echarts} option={assetStackOption} style={{ height: 200 }} />
                   </div>
                 )}
               </Card>
@@ -692,12 +693,12 @@ export default function DashboardPage() {
               <Space direction="vertical" size={16} style={{ width: '100%' }}>
                 {pieOption && (
                   <Card className="chart-card" title="支出分类" size="small" styles={{ body: { padding: 12 } }}>
-                    <ReactEChartsCore option={pieOption} style={{ height: 260 }} />
+                    <ReactEChartsCore echarts={echarts} option={pieOption} style={{ height: 260 }} />
                   </Card>
                 )}
                 {compareOption && (
                   <Card className="chart-card" title="对比" size="small" styles={{ body: { padding: 12 } }}>
-                    <ReactEChartsCore option={compareOption} style={{ height: 260 }} />
+                    <ReactEChartsCore echarts={echarts} option={compareOption} style={{ height: 260 }} />
                   </Card>
                 )}
               </Space>
@@ -827,7 +828,7 @@ export default function DashboardPage() {
           {/* 趋势图 */}
           {trendOption && (
             <Card className="chart-card" title="收支趋势" size="small" style={{ marginTop: 16 }}>
-              <ReactEChartsCore option={trendOption} style={{ height: 260 }} />
+              <ReactEChartsCore echarts={echarts} option={trendOption} style={{ height: 260 }} />
             </Card>
           )}
 
@@ -836,14 +837,14 @@ export default function DashboardPage() {
             <Col xs={24} md={12}>
               {pieOption && (
                 <Card className="chart-card" title="支出分类" size="small">
-                  <ReactEChartsCore option={pieOption} style={{ height: 300 }} />
+                  <ReactEChartsCore echarts={echarts} option={pieOption} style={{ height: 300 }} />
                 </Card>
               )}
             </Col>
             <Col xs={24} md={12}>
               {compareOption && (
                 <Card className="chart-card" title="对比" size="small">
-                  <ReactEChartsCore option={compareOption} style={{ height: 300 }} />
+                  <ReactEChartsCore echarts={echarts} option={compareOption} style={{ height: 300 }} />
                 </Card>
               )}
             </Col>
