@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Steps, Button, Select, Upload, Table, message, Alert, Space, Card, InputNumber, Input, DatePicker } from 'antd';
 import { InboxOutlined, ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -14,12 +14,6 @@ const yearOptions = Array.from({ length: 10 }, (_, i) => {
   const y = 2020 + i;
   return { value: String(y), label: `${y}年` };
 });
-
-const categories = [
-  '购物（网购）', '餐饮', '还款（房贷 信用卡）', '娱乐',
-  '生活服务', '转账（红包、人情）', '充值缴费', '交通',
-  '医疗（保险、核酸等）', '其他', '家庭支出（装修、大件）',
-];
 
 export default function ImportPage() {
   return (
@@ -51,6 +45,15 @@ function ImportExpense() {
   const [loading, setLoading] = useState(false);
   const [duplicates, setDuplicates] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<any[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.fetchCategories().then((res) => {
+      setCategories(res.categories);
+    }).catch(() => {
+      message.error('获取分类列表失败');
+    });
+  }, []);
 
   const handleUploadAndPreview = async () => {
     if (!month) { message.error('请选择月份'); return; }

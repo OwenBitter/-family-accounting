@@ -1,3 +1,4 @@
+import { message } from 'antd';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Transaction, MonthlySummary, TrendDataPoint } from '../types';
@@ -45,7 +46,7 @@ export const useAppStore = create<AppState>()(
             set({ currentMonth: res.availableMonths[res.availableMonths.length - 1] });
           }
         } catch {
-          // silent
+          message.error('获取可用月份失败');
         }
       },
 
@@ -66,6 +67,7 @@ export const useAppStore = create<AppState>()(
           set({ summary: res.data });
         } catch {
           set({ summary: null });
+          message.error('获取月度汇总失败');
         }
       },
       fetchTrend: async () => {
@@ -74,6 +76,7 @@ export const useAppStore = create<AppState>()(
           set({ trendData: res.data });
         } catch {
           set({ trendData: [] });
+          message.error('获取趋势数据失败');
         }
       },
     }),

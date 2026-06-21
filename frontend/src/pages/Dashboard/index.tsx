@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Row, Col, Card, Select, Empty, Spin, Table, Progress, Space, Button, Alert, Descriptions, Tag, Modal, Tooltip } from 'antd';
+import { Row, Col, Card, Select, Empty, Spin, Table, Progress, Space, Button, Alert, Descriptions, Tag, Modal, Tooltip, message } from 'antd';
 import {
   WalletOutlined, ArrowUpOutlined, ArrowDownOutlined, SaveOutlined, DownloadOutlined, EditOutlined, DollarOutlined,
 } from '@ant-design/icons';
@@ -9,6 +9,7 @@ import * as api from '../../api';
 import StatCard from '../../components/StatCard';
 import AssetEditModal from '../../components/AssetEditModal';
 import IncomeEditModal from '../../components/IncomeEditModal';
+import { fmtNoDec, fmt, fmtMoney, fmtMoney2 } from '../../utils/format';
 import type { CategoryAnalysis, Transaction, AssetData, IncomeRecord, GoldItem } from '../../types';
 
 const mOpts = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `${i + 1}月` }));
@@ -83,7 +84,9 @@ export default function DashboardPage() {
         } else {
           setPrevMonthAssets({});
         }
-      }).catch(() => {}).finally(() => setLoading(false));
+      }).catch(() => {
+        message.error('获取当月数据失败');
+      }).finally(() => setLoading(false));
       fetchTrend();
     }
   }, [currentMonth, fetchSummary, fetchTrend, prevMonthStr]);
@@ -95,7 +98,9 @@ export default function DashboardPage() {
     ]).then(([inv, gp]) => {
       if (inv.gold) setGold(inv.gold);
       if (gp.pricePerGram) setGoldPrice(gp.pricePerGram);
-    }).catch(() => {});
+    }).catch(() => {
+      message.error('获取投资/金价数据失败');
+    });
   }, []);
 
   const filteredDetails = useMemo(() => {
@@ -282,12 +287,6 @@ export default function DashboardPage() {
     }
   };
 
-  const fmtNoDec = (v: number) => Number(v.toFixed(0)).toLocaleString();
-
-  // Thousand-separator formatting for asset amounts
-  const fmt = (v: number) => v.toLocaleString('zh-CN');
-  const fmtMoney = (v: number) => `¥${fmt(v)}`;
-  const fmtMoney2 = (v: number) => `¥${v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   // Diff indicator component
   function AssetDiff({ curr, prev }: { curr: number; prev?: number }) {

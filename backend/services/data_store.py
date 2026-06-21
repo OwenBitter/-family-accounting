@@ -47,6 +47,20 @@ class DataStore:
         safe_name = month.replace(".", "_")
         return self.history_dir / f"{safe_name}.json"
 
+    def get_all_months(self, months: list[str] | None = None) -> dict[str, Optional[MonthlyData]]:
+        """Batch-load multiple months at once (avoids N+1 reads in loops)."""
+        if months is None:
+            months = self.get_history()
+        result: dict[str, Optional[MonthlyData]] = {}
+        for month in months:
+            path = self._month_path(month)
+            if not path.exists():
+                result[month] = None
+                continue
+            with open(path, "r", encoding="utf-8") as f:
+                result[month] = MonthlyData.from_dict(json.load(f))
+        return result
+
     def _scan_months(self) -> list[str]:
         months = []
         for f in self.history_dir.glob("*.json"):

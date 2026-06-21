@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import AppLayout from './components/AppLayout';
@@ -50,9 +50,6 @@ export default function App() {
               <Route index element={<DashboardPage />} />
               <Route path="import" element={<ImportPage />} />
               <Route path="investment" element={<InvestmentPage />} />
-              <Route path="income" element={<Navigate to="/import" replace />} />
-              <Route path="analysis" element={<Navigate to="/" replace />} />
-              <Route path="export" element={<Navigate to="/" replace />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Table, Statistic, Row, Col, Spin, Tag, Image, Typography } from 'antd';
+import { Card, Table, Statistic, Row, Col, Spin, Tag, Image, Typography, message } from 'antd';
 import * as api from '../../api';
 import type { LoanRecord, GoldItem } from '../../types';
 
@@ -19,7 +19,9 @@ export default function InvestmentPage() {
       if (inv.loanBook) setLoanBook(inv.loanBook);
       if (inv.gold) setGold(inv.gold);
       if (gp.pricePerGram) setGoldPrice(gp.pricePerGram);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => {
+      message.error('获取投资数据失败');
+    }).finally(() => setLoading(false));
   }, []);
 
   const totalGoldWeight = gold.reduce((s, g) => s + g.weight, 0);

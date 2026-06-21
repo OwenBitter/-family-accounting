@@ -537,8 +537,11 @@ def data_trend():
 
     trend_data = []
     prev_monthly = None
+
+    # Batch-load all monthly data to avoid N+1 individual file reads
+    all_data = data_store.get_all_months(months)
     for month in months:
-        monthly = data_store.get_month(month)
+        monthly = all_data.get(month)
         if not monthly:
             continue
 
