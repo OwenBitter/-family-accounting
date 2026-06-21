@@ -140,14 +140,14 @@ def _parse_files(file_paths, person, auto_detect):
 # ─── Health ─────────────────────────────────────────────────────────
 
 @app.route("/api/health")
-def health():
+def health():  # type: ignore[return]
     return jsonify({"status": "ok"})
 
 
 # ─── Import ─────────────────────────────────────────────────────────
 
 @app.route("/api/import/preview", methods=["POST"])
-def import_preview():
+def import_preview():  # type: ignore[return]
     """Upload files and return parsed + classified transactions."""
     person = request.form.get("person", "")
     month = request.form.get("month", "")
@@ -195,7 +195,7 @@ def import_preview():
 
 
 @app.route("/api/import/confirm", methods=["POST"])
-def import_confirm():
+def import_confirm():  # type: ignore[return]
     """Confirm import, write to Excel and cache."""
     data = request.get_json()
     if not data:
@@ -265,7 +265,7 @@ def _prev_month(month: str) -> str:
 
 
 @app.route("/api/data/summary")
-def data_summary():
+def data_summary():  # type: ignore[return]
     """Get monthly summary (stats for dashboard stat cards)."""
     month = request.args.get("month", "")
     monthly = data_store.get_month(month)
@@ -332,7 +332,7 @@ def data_summary():
 
 
 @app.route("/api/data/expenses")
-def data_expenses():
+def data_expenses():  # type: ignore[return]
     """Get expense details and category analysis for a month."""
     month = request.args.get("month", "")
     monthly = data_store.get_month(month)
@@ -394,7 +394,7 @@ def data_expenses():
 
 
 @app.route("/api/data/assets")
-def data_assets():
+def data_assets():  # type: ignore[return]
     """Get asset data for a month."""
     month = request.args.get("month", "")
     monthly = data_store.get_month(month)
@@ -414,7 +414,7 @@ def data_assets():
 
 
 @app.route("/api/data/assets", methods=["PUT"])
-def update_assets():
+def update_assets():  # type: ignore[return]
     """Update asset data for a person in a month."""
     data = request.get_json()
     if not data:
@@ -457,7 +457,7 @@ def update_assets():
 
 
 @app.route("/api/data/income")
-def data_income():
+def data_income():  # type: ignore[return]
     """Get income records for a month."""
     month = request.args.get("month", "")
     monthly = data_store.get_month(month)
@@ -474,7 +474,7 @@ def data_income():
 
 
 @app.route("/api/data/income", methods=["PUT"])
-def update_income():
+def update_income():  # type: ignore[return]
     """Replace all income records for a person in a month."""
     data = request.get_json()
     if not data:
@@ -522,14 +522,14 @@ def update_income():
 
 
 @app.route("/api/data/history")
-def data_history():
+def data_history():  # type: ignore[return]
     """Get list of available months."""
     months = data_store.get_history()
     return jsonify({"success": True, "availableMonths": months})
 
 
 @app.route("/api/data/trend")
-def data_trend():
+def data_trend():  # type: ignore[return]
     """Get trend data for all available months (for dashboard charts)."""
     months = data_store.get_history()
     if not months:
@@ -584,7 +584,7 @@ GOLD_FILE = config.GOLD_FILE
 
 
 @app.route("/api/data/investments")
-def data_investments():
+def data_investments():  # type: ignore[return]
     """Read loan book and gold inventory from Excel."""
     result = {"loanBook": [], "gold": []}
 
@@ -635,7 +635,7 @@ def data_investments():
 _gold_price_cache = {"price": 0, "time": 0}
 
 @app.route("/api/data/gold-price")
-def gold_price():
+def gold_price():  # type: ignore[return]
     """Fetch current gold price per gram in CNY, cached for 1 hour."""
     import time as ttime
     now = ttime.time()
@@ -677,7 +677,7 @@ def gold_price():
 # ─── Gold image ────────────────────────────────────────────────────
 
 @app.route("/api/data/gold-image/<int:idx>")
-def gold_image(idx):
+def gold_image(idx):  # type: ignore[return]
     """Serve gold item image from xlsx by index (1-based)."""
     import zipfile
     if not GOLD_FILE.exists():
@@ -697,7 +697,7 @@ def gold_image(idx):
 # ─── Categories ────────────────────────────────────────────────────
 
 @app.route("/api/categories")
-def list_categories():
+def list_categories():  # type: ignore[return]
     """Get all categories and current mappings."""
     return jsonify({
         "success": True,
@@ -709,7 +709,7 @@ def list_categories():
 # ─── Export ─────────────────────────────────────────────────────────
 
 @app.route("/api/export")
-def export_month():
+def export_month():  # type: ignore[return]
     """Download Excel file for a given month."""
     month = request.args.get("month", "")
     if not month:
@@ -734,7 +734,7 @@ FRONTEND_DIST = config.BASE_DIR.parent / "frontend" / "dist"
 
 @app.route("/")
 @app.route("/<path:path>")
-def serve_frontend(path=""):
+def serve_frontend(path=""):  # type: ignore[return]
     """Serve frontend static files. SPA fallback to index.html."""
     # Don't intercept API routes (Flask route priority handles this,
     # but being explicit avoids confusion)

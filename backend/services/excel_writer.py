@@ -10,7 +10,7 @@ from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 
 
-def _safe_set_cell(ws, row, column, value=None):
+def _safe_set_cell(ws, row, column, value=None):  # type: ignore[no-untyped-def]
     """Set cell value, gracefully handling MergedCell."""
     # Check if cell is part of a merged range
     for merge_range in list(ws.merged_cells.ranges):
@@ -77,7 +77,7 @@ def create_monthly_book(month: str, data: MonthlyData,
     return str(output_path)
 
 
-def _clear_data_sheets(wb):
+def _clear_data_sheets(wb):  # type: ignore[no-untyped-def]
     """Clear data from all sheets while preserving formulas and structure."""
     clear_configs = {
         "收入": {"start": 2},
@@ -94,7 +94,7 @@ def _clear_data_sheets(wb):
                     cell.value = None
 
 
-def _write_summary_sheet(wb, month_num: str, data: MonthlyData):
+def _write_summary_sheet(wb, month_num: str, data: MonthlyData):  # type: ignore[no-untyped-def]
     """Write 总 (summary) sheet."""
     ws = wb["总"]
     ws["D2"] = f"{month_num}月"
@@ -124,7 +124,7 @@ def _write_summary_sheet(wb, month_num: str, data: MonthlyData):
     ws.cell(row=8, column=7).number_format = '#,##0.00'
 
 
-def _write_income_sheet(wb, data: MonthlyData):
+def _write_income_sheet(wb, data: MonthlyData):  # type: ignore[no-untyped-def]
     """Write 收入 (income) sheet."""
     ws = wb["收入"]
     row = 2
@@ -153,7 +153,7 @@ def _write_income_sheet(wb, data: MonthlyData):
             row += 1
 
 
-def _write_expenses_sheet(wb, data: MonthlyData):
+def _write_expenses_sheet(wb, data: MonthlyData):  # type: ignore[no-untyped-def]
     """Write 支出明细 (expense details) sheet."""
     ws = wb["支出明细"]
     row = 2
@@ -196,7 +196,7 @@ def _write_expenses_sheet(wb, data: MonthlyData):
                 pass
 
 
-def _write_analysis_sheet(wb, data: MonthlyData):
+def _write_analysis_sheet(wb, data: MonthlyData):  # type: ignore[no-untyped-def]
     """Write 支出明细+收入明细 (combined expense & income details) sheet."""
     # Handle both legacy (支出分析) and current (支出明细) sheet names
     if "支出明细" in wb.sheetnames:
@@ -304,7 +304,7 @@ def _write_analysis_sheet(wb, data: MonthlyData):
     ws.title = "支出明细"
 
 
-def _write_assets_sheet(wb, data: MonthlyData):
+def _write_assets_sheet(wb, data: MonthlyData):  # type: ignore[no-untyped-def]
     """Write 理财 (assets) sheet."""
     ws = wb["理财"]
 

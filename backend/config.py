@@ -1,8 +1,11 @@
 import json
 import os
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
+
+Person = Literal["BB", "LN"]
 
 load_dotenv()
 
